@@ -1,17 +1,9 @@
-# Core dependencies
 pandas
 numpy
-
-# NLP / Text Processing
 nltk
 tiktoken
-
-# Machine Learning
 scikit-learn
 sentence-transformers
-
-# Pathway (required for Track A)
 pathway
-
-# LLM Integration (for later milestones)
 openai
+python-dotenv

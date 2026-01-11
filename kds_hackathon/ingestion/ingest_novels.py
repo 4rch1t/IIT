@@ -254,7 +254,7 @@ class PathwayVectorIndex:
         
         self._chunks: List[Dict[str, Any]] = []
         self._embeddings: List[List[float]] = []
-        self._pw_table: Optional[pw.Table] = None
+        self._pw_table: Optional[Any] = None
     
     def add_chunks(
         self, 
@@ -271,24 +271,17 @@ class PathwayVectorIndex:
             self._chunks.append(chunk_data)
             self._embeddings.append(embedding)
     
-    def build_pathway_table(self) -> pw.Table:
-        """Build a Pathway table from the indexed chunks."""
+    def build_pathway_table(self) -> Any:
+        """Build a Pathway table from the indexed chunks.
+
+        If the installed `pathway` package does not expose the expected
+        APIs (common on placeholder packages), fall back to returning a
+        pandas DataFrame so the rest of the pipeline can proceed.
+        """
         if not self._chunks:
             raise ValueError("No chunks to index")
-        
-        # Define Pathway schema
-        class ChunkSchema(pw.Schema):
-            story_id: str
-            chunk_id: int
-            text: str
-            position: float
-            start_token: int
-            end_token: int
-            total_tokens: int
-            embedding: list
-        
-        # Create Pathway table from data
-        # Prepare rows for Pathway ingestion
+
+        # Prepare rows for ingestion
         rows = []
         for chunk in self._chunks:
             rows.append({
@@ -301,12 +294,18 @@ class PathwayVectorIndex:
                 'total_tokens': chunk['total_tokens'],
                 'embedding': chunk['embedding']
             })
-        
-        # Use Pathway's debug connector for static data ingestion
-        self._pw_table = pw.debug.table_from_pandas(
-            __import__('pandas').DataFrame(rows)
-        )
-        
+
+        df = __import__('pandas').DataFrame(rows)
+
+        # Try to build a Pathway table; if Pathway isn't available or
+        # doesn't expose the expected APIs, use the DataFrame fallback.
+        try:
+            self._pw_table = pw.debug.table_from_pandas(df)
+            print("Pathway table built using pw.debug.table_from_pandas()")
+        except Exception:
+            self._pw_table = df
+            print("Pathway unavailable or incompatible; using pandas DataFrame fallback")
+
         return self._pw_table
     
     def save(self) -> None:
